@@ -1,0 +1,2120 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Absensi Guru SDN 01</title>
+  <meta name="theme-color" content="#1B6B4A">
+
+  <!-- ── PWA: iOS Meta Tags ───────────────────────────────── -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Absensi Guru">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="Absensi Guru">
+  <meta name="description" content="Sistem Absensi Digital Guru SDN — GPS + QR Code">
+  <meta name="format-detection" content="telephone=no">
+
+  <!-- ── PWA: Manifest ── -->
+  <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Absensi+Guru+SDN%22%2C%22short_name%22%3A%22Absensi%22%2C%22description%22%3A%22Sistem+Absensi+Digital+Guru+SDN+%E2%80%94+GPS+%2B+QR+Code%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22orientation%22%3A%22portrait%22%2C%22theme_color%22%3A%22%231B6B4A%22%2C%22background_color%22%3A%22%23F0EDE6%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg+xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27+viewBox%3D%270+0+192+192%27%253E%253Crect+width%3D%27192%27+height%3D%27192%27+rx%3D%2738%27+fill%3D%27%231B6B4A%27%2F%253E%253Ctext+y%3D%27130%27+x%3D%2796%27+text-anchor%3D%27middle%27+font-size%3D%27110%27%253E%25F0%259F%258F%25AB%253C%2Ftext%253E%253C%2Fsvg%253E%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- jsQR — QR decode engine -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+
+  <!--
+    ╔══════════════════════════════════════════════════════╗
+    ║  GOOGLE IDENTITY SERVICES (GSI)                      ║
+    ║  Untuk sign-in tanpa iframe GAS.                     ║
+    ║  onload="setupGoogleSignIn" dipanggil otomatis       ║
+    ║  setelah library berhasil dimuat.                    ║
+    ╚══════════════════════════════════════════════════════╝
+  -->
+  <script src="https://accounts.google.com/gsi/client"
+          async
+          onload="setupGoogleSignIn()"></script>
+
+  <style>
+    :root {
+      --green:        #1B6B4A;
+      --green-mid:    #2A8B62;
+      --green-light:  #3DAA7A;
+      --green-pale:   #E6F4EE;
+      --amber:        #C96B00;
+      --amber-mid:    #E07B12;
+      --amber-light:  #F5961F;
+      --amber-pale:   #FEF0DC;
+      --red:          #C0392B;
+      --red-pale:     #FDECEA;
+      --bg:           #F0EDE6;
+      --surface:      #FFFFFF;
+      --text:         #1A241A;
+      --muted:        #7A8C7A;
+      --border:       #E2DDD6;
+      --shadow-sm:    0 2px 10px rgba(0,0,0,0.07);
+      --shadow:       0 4px 22px rgba(0,0,0,0.10);
+      --shadow-lg:    0 10px 42px rgba(0,0,0,0.15);
+      --r:            20px;
+      --r-sm:         13px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      height: 100%;
+      font-family: 'Nunito', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* ─── SCREENS ─────────────────────────── */
+    .screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding-bottom: 36px;
+    }
+    .screen.active {
+      display: flex;
+      animation: slideUp .35s cubic-bezier(.25,.46,.45,.94) both;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(22px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ─── HERO ─────────────────────────────── */
+    .hero {
+      width: 100%;
+      background: linear-gradient(150deg, var(--green) 0%, var(--green-mid) 55%, var(--green-light) 100%);
+      padding: 52px 24px 72px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before, .hero::after {
+      content: '';
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255,255,255,.06);
+    }
+    .hero::before { width: 220px; height: 220px; top: -60px; right: -60px; }
+    .hero::after  { width: 160px; height: 160px; bottom: -50px; left: -40px; }
+    .hero-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,.16);
+      border: 1px solid rgba(255,255,255,.28);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      padding: 5px 13px;
+      border-radius: 100px;
+      margin-bottom: 14px;
+    }
+    .hero h1 {
+      color: #fff;
+      font-size: 27px;
+      font-weight: 900;
+      line-height: 1.22;
+      margin-bottom: 5px;
+    }
+    .hero-sub { color: rgba(255,255,255,.72); font-size: 13.5px; font-weight: 600; }
+    .hero-date {
+      margin-top: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,.12);
+      padding: 5px 12px;
+      border-radius: 100px;
+      color: rgba(255,255,255,.9);
+      font-size: 12.5px;
+      font-weight: 700;
+    }
+
+    .hero-sm {
+      width: 100%;
+      padding: 46px 24px 34px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-sm::before {
+      content: '';
+      position: absolute;
+      width: 180px; height: 180px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.07);
+      top: -50px; right: -40px;
+    }
+    .hero-sm.green { background: linear-gradient(135deg, var(--green), var(--green-mid)); }
+    .hero-sm.amber { background: linear-gradient(135deg, var(--amber), var(--amber-mid)); }
+    .hero-sm h2 { color: #fff; font-size: 21px; font-weight: 900; }
+    .hero-sm p  { color: rgba(255,255,255,.72); font-size: 13px; margin-top: 4px; }
+
+    /* ─── BACK BUTTON ───────────────────────── */
+    .back-btn {
+      position: absolute;
+      top: 14px; left: 14px;
+      width: 38px; height: 38px;
+      background: rgba(255,255,255,.18);
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 22px;
+      line-height: 38px;
+      text-align: center;
+      cursor: pointer;
+      z-index: 10;
+      transition: background .2s;
+    }
+    .back-btn:active { background: rgba(255,255,255,.3); }
+
+    /* ─── CARD ─────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      padding: 22px;
+      width: calc(100% - 28px);
+      max-width: 448px;
+      margin-bottom: 14px;
+    }
+    .card.lift { margin-top: -32px; position: relative; z-index: 5; }
+
+    /* ─── GURU CARD ─────────────────────────── */
+    .guru-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .guru-avatar {
+      width: 52px; height: 52px;
+      background: var(--green-pale);
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px;
+      flex-shrink: 0;
+    }
+    .guru-name  { font-size: 17px; font-weight: 900; }
+    .guru-email { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+
+    /* ─── STATUS BADGE ──────────────────────── */
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 11px 14px;
+      border-radius: var(--r-sm);
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .status-badge.green { background: var(--green-pale); color: var(--green); }
+    .status-badge.amber { background: var(--amber-pale); color: var(--amber); }
+    .status-dot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .status-badge.green .status-dot { background: var(--green); }
+    .status-badge.amber .status-dot { background: var(--amber-mid); animation: blink 1.6s infinite; }
+    @keyframes blink { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.3)} }
+
+    /* ─── ACTION GRID ───────────────────────── */
+    .action-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 13px;
+      width: calc(100% - 28px);
+      max-width: 448px;
+    }
+    .btn-action {
+      border: none;
+      border-radius: var(--r);
+      padding: 26px 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 9px;
+      cursor: pointer;
+      transition: transform .14s, box-shadow .14s;
+    }
+    .btn-action:active { transform: scale(.95); }
+    .btn-action.green {
+      background: linear-gradient(150deg, var(--green-light), var(--green));
+      box-shadow: 0 8px 26px rgba(27,107,74,.38);
+    }
+    .btn-action.amber {
+      background: linear-gradient(150deg, var(--amber-light), var(--amber));
+      box-shadow: 0 8px 26px rgba(201,107,0,.34);
+    }
+    .btn-action.disabled {
+      background: #CACBC7;
+      box-shadow: none;
+      cursor: default;
+    }
+    .btn-action-icon  { font-size: 40px; line-height: 1; }
+    .btn-action-label { color: #fff; font-size: 15px; font-weight: 900; }
+    .btn-action-sub   { color: rgba(255,255,255,.72); font-size: 11px; font-weight: 700; }
+
+    /* ─── SECTION LABEL ─────────────────────── */
+    .section-label {
+      width: calc(100% - 28px);
+      max-width: 448px;
+      font-size: 10.5px;
+      font-weight: 900;
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 18px 0 9px;
+    }
+
+    /* ─── STEP INDICATOR ────────────────────── */
+    .step-bar {
+      display: flex;
+      gap: 7px;
+      width: calc(100% - 28px);
+      max-width: 448px;
+      margin-bottom: 18px;
+    }
+    .step-seg {
+      flex: 1;
+      height: 5px;
+      border-radius: 100px;
+      background: var(--border);
+      transition: background .3s;
+    }
+    .step-seg.done   { background: var(--green-mid); }
+    .step-seg.active { background: var(--green); }
+
+    /* ─── STEP PANELS ───────────────────────── */
+    .step-panel { display: none; flex-direction: column; align-items: center; width: 100%; }
+    .step-panel.active { display: flex; }
+
+    /* ─── GPS PANEL ─────────────────────────── */
+    .gps-card {
+      background: var(--surface);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      padding: 30px 24px;
+      text-align: center;
+      width: calc(100% - 28px);
+      max-width: 448px;
+      margin-bottom: 13px;
+    }
+    .gps-emoji  { font-size: 58px; margin-bottom: 14px; }
+    .gps-title  { font-size: 18px; font-weight: 900; margin-bottom: 7px; }
+    .gps-desc   { font-size: 13px; color: var(--muted); line-height: 1.65; margin-bottom: 20px; }
+    .gps-result {
+      padding: 13px 15px;
+      border-radius: var(--r-sm);
+      font-size: 13px;
+      font-weight: 700;
+      white-space: pre-line;
+      line-height: 1.6;
+      display: none;
+      margin-bottom: 15px;
+      text-align: left;
+    }
+    .gps-result.ok  { background: var(--green-pale); color: var(--green); display: block; }
+    .gps-result.err { background: var(--red-pale);   color: var(--red);   display: block; }
+
+    /* ─── QR SCANNER ────────────────────────── */
+    .qr-wrap {
+      width: calc(100% - 28px);
+      max-width: 448px;
+      border-radius: var(--r);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      margin-bottom: 13px;
+      background: #000;
+      position: relative;
+    }
+    #qr-video {
+      display: block;
+      width: 100%;
+      height: auto;
+      max-height: 340px;
+      object-fit: cover;
+    }
+    #qr-canvas { display: none; }
+    .qr-viewfinder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+    .qr-mask {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,.46);
+    }
+    .qr-mask::after {
+      content: '';
+      position: absolute;
+      left: 50%; top: 50%;
+      transform: translate(-50%,-50%);
+      width: 220px; height: 220px;
+      box-shadow: 0 0 0 9999px rgba(0,0,0,.46);
+      border-radius: 12px;
+    }
+    .qr-frame {
+      position: relative;
+      width: 220px; height: 220px;
+      z-index: 2;
+    }
+    .qr-corner {
+      position: absolute;
+      width: 32px; height: 32px;
+      border-color: #fff;
+      border-style: solid;
+      border-radius: 4px;
+    }
+    .qr-corner.tl { top: 0;    left: 0;    border-width: 3px 0 0 3px; }
+    .qr-corner.tr { top: 0;    right: 0;   border-width: 3px 3px 0 0; }
+    .qr-corner.bl { bottom: 0; left: 0;    border-width: 0 0 3px 3px; }
+    .qr-corner.br { bottom: 0; right: 0;   border-width: 0 3px 3px 0; }
+    .qr-scanline {
+      position: absolute;
+      left: 6px; right: 6px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #3DAA7A, #56d9a0, #3DAA7A, transparent);
+      border-radius: 2px;
+      top: 0;
+      animation: scanMove 2s ease-in-out infinite;
+      box-shadow: 0 0 8px 1px rgba(61,170,122,.7);
+    }
+    @keyframes scanMove {
+      0%   { top: 8px;  opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { top: calc(100% - 8px); opacity: 0; }
+    }
+    .qr-frame.detected .qr-corner { border-color: var(--green-light); transition: border-color .2s; }
+    .qr-frame.detected .qr-scanline { animation: none; top: 50%; opacity: 0; }
+    .qr-status-chip {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,.7);
+      color: #fff;
+      font-family: 'Nunito', sans-serif;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 5px 14px;
+      border-radius: 100px;
+      white-space: nowrap;
+      z-index: 4;
+      backdrop-filter: blur(4px);
+    }
+    .qr-torch-btn {
+      position: absolute;
+      top: 12px; right: 12px;
+      width: 38px; height: 38px;
+      background: rgba(0,0,0,.55);
+      border: none;
+      border-radius: 12px;
+      font-size: 20px;
+      line-height: 38px;
+      text-align: center;
+      cursor: pointer;
+      z-index: 5;
+      backdrop-filter: blur(4px);
+      transition: background .2s;
+    }
+    .qr-torch-btn:active { background: rgba(255,255,255,.25); }
+    .qr-torch-btn.on { background: rgba(255,220,0,.35); }
+    .qr-cam-error {
+      width: 100%;
+      background: #111;
+      color: #fff;
+      padding: 40px 20px;
+      text-align: center;
+      font-family: 'Nunito', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.7;
+      display: none;
+    }
+    .qr-cam-error.show { display: block; }
+    .qr-hint {
+      background: var(--surface);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      padding: 18px 20px;
+      width: calc(100% - 28px);
+      max-width: 448px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 600;
+      line-height: 1.6;
+      margin-bottom: 13px;
+    }
+    .qr-result {
+      padding: 13px 15px;
+      border-radius: var(--r-sm);
+      font-size: 13px;
+      font-weight: 700;
+      display: none;
+      width: calc(100% - 28px);
+      max-width: 448px;
+      margin-bottom: 13px;
+      text-align: center;
+    }
+    .qr-result.ok { background: var(--green-pale); color: var(--green); display: block; }
+
+    /* ─── KONFIRMASI ────────────────────────── */
+    .info-table { width: 100%; }
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13.5px;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-row .k { color: var(--muted); font-weight: 600; }
+    .info-row .v { font-weight: 800; text-align: right; max-width: 60%; }
+
+    /* ─── IZIN FORM ─────────────────────────── */
+    .form-group { margin-bottom: 16px; }
+    .form-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 7px;
+    }
+    .form-ctrl {
+      width: 100%;
+      padding: 13px 15px;
+      border: 2px solid var(--border);
+      border-radius: var(--r-sm);
+      font-family: 'Nunito', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      background: var(--bg);
+      outline: none;
+      transition: border-color .2s, background .2s;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .form-ctrl:focus { border-color: var(--green); background: #fff; }
+    textarea.form-ctrl { min-height: 88px; resize: vertical; line-height: 1.5; }
+    .radio-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    .radio-inp { display: none; }
+    .radio-lbl {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 14px 10px;
+      border: 2px solid var(--border);
+      border-radius: var(--r-sm);
+      cursor: pointer;
+      background: var(--bg);
+      transition: border-color .2s, background .2s;
+    }
+    .radio-lbl .emoji { font-size: 28px; }
+    .radio-lbl .lbl   { font-size: 13px; font-weight: 900; color: var(--muted); }
+    .radio-inp:checked + .radio-lbl { border-color: var(--green); background: var(--green-pale); }
+    .radio-inp:checked + .radio-lbl .lbl { color: var(--green); }
+
+    /* ─── BUTTONS ───────────────────────────── */
+    .btn {
+      display: block;
+      width: calc(100% - 28px);
+      max-width: 448px;
+      padding: 15px 24px;
+      border: none;
+      border-radius: var(--r-sm);
+      font-family: 'Nunito', sans-serif;
+      font-size: 15.5px;
+      font-weight: 900;
+      cursor: pointer;
+      transition: transform .13s, box-shadow .13s, opacity .13s;
+      margin-bottom: 10px;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-green {
+      background: linear-gradient(135deg, var(--green-light), var(--green));
+      color: #fff;
+      box-shadow: 0 6px 22px rgba(27,107,74,.32);
+    }
+    .btn-amber {
+      background: linear-gradient(135deg, var(--amber-light), var(--amber));
+      color: #fff;
+      box-shadow: 0 6px 22px rgba(201,107,0,.30);
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      box-shadow: none;
+      font-size: 14px;
+      padding: 11px;
+    }
+    .btn-ghost:active { transform: none; }
+
+    /* ─── LOADING SCREEN ────────────────────── */
+    #screen-loading { justify-content: center; }
+    .loading-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+      padding: 40px 28px;
+      text-align: center;
+    }
+    .load-emoji { font-size: 66px; }
+    .spinner {
+      width: 54px; height: 54px;
+      border: 5px solid var(--green-pale);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin .75s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .load-title { font-size: 19px; font-weight: 900; }
+    .load-sub   { font-size: 13.5px; color: var(--muted); line-height: 1.65; }
+
+    /* ─── SUCCESS SCREEN ────────────────────── */
+    #screen-success { justify-content: center; }
+    .success-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px 24px;
+      text-align: center;
+      width: 100%;
+      max-width: 448px;
+    }
+    .success-emoji {
+      font-size: 78px;
+      margin-bottom: 18px;
+      animation: popIn .5s cubic-bezier(.175,.885,.32,1.275) both;
+    }
+    @keyframes popIn {
+      from { transform: scale(0); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+    .success-title { font-size: 25px; font-weight: 900; margin-bottom: 8px; }
+    .success-sub   { font-size: 13.5px; color: var(--muted); line-height: 1.7; margin-bottom: 26px; }
+    .success-info {
+      width: 100%;
+      border-radius: var(--r-sm);
+      padding: 16px 18px;
+      margin-bottom: 24px;
+      text-align: left;
+    }
+    .success-info.green { background: var(--green-pale); }
+    .success-info.amber { background: var(--amber-pale); }
+
+    /* ─── NOTES CARD ────────────────────────── */
+    .notes-card {
+      background: var(--surface);
+      border-radius: var(--r);
+      box-shadow: var(--shadow-sm);
+      padding: 18px 20px;
+      width: calc(100% - 28px);
+      max-width: 448px;
+      font-size: 12.5px;
+      color: var(--muted);
+      line-height: 1.85;
+    }
+    .notes-card strong { color: var(--text); display: block; margin-bottom: 5px; font-size: 13px; }
+
+    /* ─── TOAST ─────────────────────────────── */
+    #toast-wrap {
+      position: fixed;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 28px);
+      max-width: 420px;
+      z-index: 999;
+      pointer-events: none;
+    }
+    .toast {
+      padding: 13px 17px;
+      border-radius: var(--r-sm);
+      font-size: 13.5px;
+      font-weight: 700;
+      line-height: 1.5;
+      margin-bottom: 9px;
+      box-shadow: var(--shadow-lg);
+      animation: toastIn .3s ease forwards;
+      pointer-events: auto;
+    }
+    .toast.ok   { background: var(--green);       color: #fff; }
+    .toast.err  { background: var(--red);          color: #fff; }
+    .toast.info { background: #1A2A3A;             color: #fff; }
+    .toast.out  { animation: toastOut .28s ease forwards; }
+    @keyframes toastIn  { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes toastOut { to  {opacity:0;transform:translateY(16px)} }
+
+    .h20 { height: 20px; }
+
+    /* ─── INSTALL BANNER ────────────────────── */
+    #install-banner {
+      width: calc(100% - 28px);
+      max-width: 448px;
+      margin: 0 0 14px;
+      background: linear-gradient(135deg, #0F3D28 0%, #1B6B4A 100%);
+      border-radius: var(--r);
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      box-shadow: 0 6px 24px rgba(27,107,74,.35);
+      cursor: pointer;
+      transition: transform .15s;
+    }
+    #install-banner:active { transform: scale(.98); }
+    #install-banner.hidden { display: none; }
+    .install-banner-icon { font-size: 32px; flex-shrink: 0; }
+    .install-banner-text { flex: 1; }
+    .install-banner-title { color: #fff; font-size: 14px; font-weight: 900; margin-bottom: 2px; }
+    .install-banner-sub   { color: rgba(255,255,255,.7); font-size: 11.5px; font-weight: 600; }
+    #install-banner-dismiss {
+      background: rgba(255,255,255,.15);
+      border: none;
+      color: rgba(255,255,255,.7);
+      font-size: 18px;
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      cursor: pointer;
+      line-height: 28px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    /* ─── SIGN-IN SCREEN ────────────────────── */
+    #screen-signin { justify-content: flex-start; }
+
+    .signin-hero {
+      width: 100%;
+      background: linear-gradient(150deg, var(--green) 0%, var(--green-mid) 55%, var(--green-light) 100%);
+      padding: 60px 28px 80px;
+      position: relative;
+      overflow: hidden;
+      text-align: center;
+    }
+    .signin-hero::before {
+      content: '';
+      position: absolute;
+      width: 260px; height: 260px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.06);
+      top: -80px; right: -70px;
+    }
+    .signin-hero::after {
+      content: '';
+      position: absolute;
+      width: 180px; height: 180px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.05);
+      bottom: -60px; left: -50px;
+    }
+    .signin-logo {
+      font-size: 64px;
+      margin-bottom: 14px;
+      position: relative;
+      z-index: 1;
+    }
+    .signin-school-name {
+      color: rgba(255,255,255,.8);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      background: rgba(255,255,255,.14);
+      border: 1px solid rgba(255,255,255,.25);
+      padding: 4px 14px;
+      border-radius: 100px;
+      display: inline-block;
+      margin-bottom: 14px;
+      position: relative;
+      z-index: 1;
+    }
+    .signin-hero h1 {
+      color: #fff;
+      font-size: 26px;
+      font-weight: 900;
+      line-height: 1.25;
+      position: relative;
+      z-index: 1;
+      margin-bottom: 6px;
+    }
+    .signin-hero-sub {
+      color: rgba(255,255,255,.68);
+      font-size: 13px;
+      font-weight: 600;
+      position: relative;
+      z-index: 1;
+    }
+
+    .signin-card {
+      background: var(--surface);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      padding: 28px 24px;
+      width: calc(100% - 28px);
+      max-width: 420px;
+      margin-top: -32px;
+      position: relative;
+      z-index: 5;
+      text-align: center;
+      margin-bottom: 14px;
+    }
+    .signin-card-emoji { font-size: 44px; margin-bottom: 12px; }
+    .signin-card-title { font-size: 19px; font-weight: 900; margin-bottom: 6px; }
+    .signin-card-sub {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.65;
+      margin-bottom: 24px;
+    }
+
+    /* Wrapper for Google-rendered button — centres it and adds spacing */
+    #google-signin-btn {
+      display: flex;
+      justify-content: center;
+      min-height: 44px;
+    }
+
+    /* Spinner shown while GIS loads or while validating */
+    .gsi-loading {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .gsi-loading.show { display: flex; }
+    .gsi-loading .spinner { width: 32px; height: 32px; border-width: 4px; }
+
+    /* Sign-out button in the main hero */
+    .signout-btn {
+      position: absolute;
+      top: 14px; right: 14px;
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.25);
+      color: rgba(255,255,255,.8);
+      font-family: 'Nunito', sans-serif;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 6px 12px;
+      border-radius: 100px;
+      cursor: pointer;
+      transition: background .2s;
+      z-index: 10;
+    }
+    .signout-btn:active { background: rgba(255,255,255,.28); }
+
+    /* ─── MODAL OVERLAY ──────────────────────── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.52);
+      z-index: 500;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 0;
+      animation: fadeOverlay .25s ease both;
+    }
+    .modal-overlay.hidden { display: none; }
+    @keyframes fadeOverlay { from{opacity:0} to{opacity:1} }
+    .modal-sheet {
+      background: var(--surface);
+      border-radius: 24px 24px 0 0;
+      width: 100%;
+      max-width: 520px;
+      padding: 28px 24px 42px;
+      animation: slideSheet .3s cubic-bezier(.25,.46,.45,.94) both;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    @keyframes slideSheet { from{transform:translateY(100%)} to{transform:translateY(0)} }
+    .modal-handle {
+      width: 40px; height: 4px;
+      background: var(--border);
+      border-radius: 100px;
+      margin: 0 auto 22px;
+    }
+    .modal-title { font-size: 20px; font-weight: 900; text-align: center; margin-bottom: 6px; }
+    .modal-sub   { font-size: 13px; color: var(--muted); text-align: center; line-height: 1.65; margin-bottom: 24px; }
+
+    /* ─── CAMERA PERMISSION MODAL ───────────── */
+    .cam-perm-visual {
+      background: linear-gradient(135deg, var(--green-pale), #d0ede2);
+      border-radius: 18px;
+      padding: 28px 20px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .cam-perm-icon { font-size: 56px; margin-bottom: 10px; }
+    .cam-perm-dialog {
+      background: #fff;
+      border-radius: 14px;
+      padding: 14px 16px;
+      box-shadow: 0 4px 18px rgba(0,0,0,.12);
+      text-align: left;
+      margin-top: 12px;
+    }
+    .cam-perm-dialog-title { font-size: 13px; font-weight: 900; color: var(--text); margin-bottom: 8px; }
+    .cam-perm-dialog-sub   { font-size: 11.5px; color: var(--muted); margin-bottom: 10px; }
+    .cam-perm-btn-row { display: flex; gap: 8px; justify-content: flex-end; }
+    .cam-dialog-btn { padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 800; border: none; cursor: default; }
+    .cam-dialog-btn.deny  { background: var(--border); color: var(--muted); }
+    .cam-dialog-btn.allow { background: var(--green); color: #fff; }
+    .cam-perm-steps { display: flex; flex-direction: column; gap: 12px; margin-bottom: 22px; }
+    .cam-step { display: flex; align-items: flex-start; gap: 13px; }
+    .cam-step-num {
+      width: 30px; height: 30px;
+      background: var(--green);
+      color: #fff;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 900;
+      flex-shrink: 0;
+    }
+    .cam-step-text { padding-top: 4px; }
+    .cam-step-title { font-size: 13.5px; font-weight: 900; margin-bottom: 2px; }
+    .cam-step-desc  { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+    /* ─── CAMERA DENIED MODAL ────────────────── */
+    .denied-steps { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+    .denied-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 11px;
+      background: var(--bg);
+      border-radius: var(--r-sm);
+      padding: 12px 13px;
+    }
+    .denied-step-emoji { font-size: 22px; flex-shrink: 0; }
+    .denied-step-text  { font-size: 13px; font-weight: 700; line-height: 1.5; color: var(--text); }
+    .denied-step-text small { color: var(--muted); font-weight: 600; font-size: 11.5px; }
+
+    /* ─── INSTALL GUIDE MODAL ────────────────── */
+    .os-tabs {
+      display: flex;
+      gap: 0;
+      background: var(--bg);
+      border-radius: var(--r-sm);
+      padding: 4px;
+      margin-bottom: 20px;
+    }
+    .os-tab {
+      flex: 1;
+      padding: 10px 8px;
+      border: none;
+      border-radius: 10px;
+      background: transparent;
+      font-family: 'Nunito', sans-serif;
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--muted);
+      cursor: pointer;
+      transition: background .2s, color .2s;
+    }
+    .os-tab.active { background: var(--surface); color: var(--green); box-shadow: var(--shadow-sm); }
+    .os-panel { display: none; }
+    .os-panel.active { display: block; }
+    .install-steps { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+    .install-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 13px;
+      padding: 13px 14px;
+      background: var(--bg);
+      border-radius: var(--r-sm);
+    }
+    .install-step-num {
+      width: 28px; height: 28px;
+      background: var(--green);
+      color: #fff;
+      border-radius: 8px;
+      font-size: 13px; font-weight: 900;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .install-step-body { flex: 1; }
+    .install-step-title { font-size: 13.5px; font-weight: 900; margin-bottom: 2px; }
+    .install-step-desc  { font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .install-tip {
+      background: var(--green-pale);
+      color: var(--green);
+      border-radius: var(--r-sm);
+      padding: 11px 13px;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════ TOAST ══════════════════════ -->
+<div id="toast-wrap"></div>
+
+<!-- ══════════════════════ SCREEN: SIGN-IN ══════════════════════ -->
+<div class="screen active" id="screen-signin">
+
+  <div class="signin-hero">
+    <div class="signin-logo">🏫</div>
+    <div class="signin-school-name">SDN Dobonsolo</div>
+    <h1>Sistem Absensi<br>Digital Guru</h1>
+    <div class="signin-hero-sub">GPS · QR Code · Terverifikasi Google</div>
+  </div>
+
+  <div class="signin-card">
+    <div class="signin-card-emoji">👋</div>
+    <div class="signin-card-title">Selamat Datang</div>
+    <div class="signin-card-sub">
+      Masuk menggunakan akun Google sekolah Anda.<br>
+      Kamera akan berfungsi penuh setelah sign-in.
+    </div>
+
+    <!-- Google Identity Services renders its button here -->
+    <div id="google-signin-btn"></div>
+
+    <!-- Shown while GIS library loads or while validating -->
+    <div class="gsi-loading" id="gsi-loading">
+      <div class="spinner"></div>
+      <span id="gsi-loading-text">Memuat tombol login…</span>
+    </div>
+  </div>
+
+  <div class="notes-card">
+    <strong>ℹ️ Petunjuk Login</strong>
+    ✔ Gunakan akun Gmail sekolah yang sudah didaftarkan Admin<br>
+    ✔ Jika muncul pop-up Google, klik <b>Izinkan</b><br>
+    ✔ Hubungi Admin jika akun Anda tidak terdaftar di sistem
+  </div>
+
+  <div class="h20"></div>
+</div>
+
+<!-- ══════════════════════ SCREEN: LOADING ══════════════════════ -->
+<div class="screen" id="screen-loading">
+  <div class="loading-box">
+    <div class="load-emoji">🏫</div>
+    <div class="spinner"></div>
+    <div>
+      <div class="load-title" id="loading-title">Memuat Aplikasi…</div>
+      <div class="load-sub"   id="loading-sub">Sedang memverifikasi akun Anda.<br>Mohon tunggu sebentar.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ SCREEN: ERROR ══════════════════════ -->
+<div class="screen" id="screen-error">
+  <div class="loading-box">
+    <div class="load-emoji">⛔</div>
+    <div>
+      <div class="load-title">Akses Ditolak</div>
+      <div class="load-sub" id="err-msg">Terjadi kesalahan tidak diketahui.</div>
+    </div>
+    <button class="btn btn-green" style="max-width:280px" onclick="goScreen('screen-signin')">🔄 Kembali ke Login</button>
+    <div class="notes-card" style="font-size:12px; max-width:380px;">
+      <strong>💡 Pastikan:</strong>
+      ✔ Anda login menggunakan akun Google sekolah<br>
+      ✔ Email Anda sudah didaftarkan Admin ke sistem<br>
+      ✔ Koneksi internet aktif saat login
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ SCREEN: MAIN ══════════════════════ -->
+<div class="screen" id="screen-main">
+  <div class="hero" style="position:relative;">
+    <button class="signout-btn" onclick="signOut()">🚪 Keluar</button>
+    <div class="hero-chip">📋 Absensi Digital</div>
+    <h1>Halo, <span id="main-nama">Guru</span>! 👋</h1>
+    <div class="hero-sub" id="main-email">email@gmail.com</div>
+    <div class="hero-date">📅 <span id="main-tanggal">—</span></div>
+  </div>
+
+  <div class="card lift">
+    <div class="guru-row">
+      <div class="guru-avatar">👩‍🏫</div>
+      <div>
+        <div class="guru-name" id="main-nama-card">—</div>
+        <div class="guru-email">Guru Terdaftar</div>
+      </div>
+    </div>
+    <div class="status-badge amber" id="main-status-badge">
+      <div class="status-dot"></div>
+      <span id="main-status-text">Belum absen hari ini</span>
+    </div>
+  </div>
+
+  <!-- Install Banner -->
+  <div id="install-banner" class="hidden" onclick="showInstallGuide()">
+    <div class="install-banner-icon">📲</div>
+    <div class="install-banner-text">
+      <div class="install-banner-title">Pasang di Layar Utama HP</div>
+      <div class="install-banner-sub">Akses absensi lebih cepat, seperti aplikasi asli</div>
+    </div>
+    <button id="install-banner-dismiss" onclick="dismissInstallBanner(event)" title="Tutup">×</button>
+  </div>
+
+  <div class="section-label">Pilih Aksi Absensi</div>
+  <div class="action-grid">
+    <button class="btn-action green" id="btn-hadir" onclick="goHadir()">
+      <div class="btn-action-icon">🟢</div>
+      <div class="btn-action-label">HADIR</div>
+      <div class="btn-action-sub">Absen Kehadiran</div>
+    </button>
+    <button class="btn-action amber" onclick="goIzin()">
+      <div class="btn-action-icon">🟡</div>
+      <div class="btn-action-label">IZIN / SAKIT</div>
+      <div class="btn-action-sub">Ajukan Ketidakhadiran</div>
+    </button>
+  </div>
+
+  <div class="section-label" style="margin-top:22px;">Panduan</div>
+  <div class="notes-card">
+    <strong>ℹ️ Cara Pakai Aplikasi</strong>
+    🟢 <b>HADIR</b> — Wajib berada di area sekolah (GPS) &amp; scan QR meja mengajar.<br>
+    🟡 <b>IZIN / SAKIT</b> — Bisa diajukan dari rumah, kapan saja.<br>
+    ⛔ Absensi ganda dalam satu hari tidak diizinkan sistem.
+  </div>
+  <div class="h20"></div>
+</div>
+
+<!-- ══════════════════════ SCREEN: HADIR ══════════════════════ -->
+<div class="screen" id="screen-hadir">
+  <div class="hero-sm green">
+    <button class="back-btn" onclick="goBack('screen-main')">‹</button>
+    <h2>🟢 Absen Kehadiran</h2>
+    <p>GPS + Scan QR Meja Mengajar</p>
+  </div>
+
+  <div class="step-bar">
+    <div class="step-seg active" id="seg1"></div>
+    <div class="step-seg"        id="seg2"></div>
+    <div class="step-seg"        id="seg3"></div>
+  </div>
+
+  <!-- STEP 1: GPS -->
+  <div class="step-panel active" id="panel1">
+    <div class="gps-card">
+      <div class="gps-emoji" id="gps-emoji">📍</div>
+      <div class="gps-title" id="gps-title">Verifikasi Lokasi GPS</div>
+      <div class="gps-desc"  id="gps-desc">Tekan tombol di bawah untuk mendeteksi lokasi Anda saat ini. Pastikan GPS / Lokasi aktif di HP Anda.</div>
+      <div class="gps-result" id="gps-result"></div>
+      <button class="btn btn-green" id="btn-gps" onclick="getGPS()">📍 Deteksi Lokasi Saya</button>
+    </div>
+    <button class="btn btn-ghost" onclick="goBack('screen-main')">Batal</button>
+  </div>
+
+  <!-- STEP 2: QR Scan -->
+  <div class="step-panel" id="panel2">
+    <div class="card" style="margin-top:0; text-align:center;">
+      <div style="font-size:34px; margin-bottom:7px;">📷</div>
+      <div style="font-size:17px; font-weight:900; margin-bottom:5px;">Scan QR Code Meja</div>
+      <div style="font-size:13px; color:var(--muted); line-height:1.55;">Arahkan kamera belakang ke stiker QR Code resmi di meja / ruang mengajar Anda.</div>
+    </div>
+    <div class="qr-wrap" id="qr-wrap">
+      <video id="qr-video" autoplay playsinline muted></video>
+      <canvas id="qr-canvas"></canvas>
+      <div class="qr-viewfinder">
+        <div class="qr-mask"></div>
+        <div class="qr-frame" id="qr-frame">
+          <div class="qr-corner tl"></div>
+          <div class="qr-corner tr"></div>
+          <div class="qr-corner bl"></div>
+          <div class="qr-corner br"></div>
+          <div class="qr-scanline"></div>
+        </div>
+        <div class="qr-status-chip" id="qr-status-chip">Mencari QR Code…</div>
+      </div>
+      <button class="qr-torch-btn" id="qr-torch-btn" onclick="toggleTorch()" title="Nyalakan Senter">🔦</button>
+      <div class="qr-cam-error" id="qr-cam-error">📵 Kamera tidak dapat diakses.<br>Pastikan izin kamera diberikan di browser, lalu muat ulang halaman.</div>
+    </div>
+    <div class="qr-result" id="qr-result"></div>
+    <div class="qr-hint">💡 Posisikan QR Code di dalam bingkai hijau.<br>Pastikan cahaya cukup dan QR tidak buram.</div>
+    <button class="btn btn-ghost" onclick="cancelQR()">✕ Batal / Kembali</button>
+  </div>
+
+  <!-- STEP 3: Konfirmasi -->
+  <div class="step-panel" id="panel3">
+    <div class="card" style="margin-top:0; text-align:center;">
+      <div style="font-size:40px; margin-bottom:12px;">📋</div>
+      <div style="font-size:17px; font-weight:900; margin-bottom:18px;">Konfirmasi Data Absensi</div>
+      <div class="info-table">
+        <div class="info-row"><span class="k">Nama Guru</span>   <span class="v" id="k-nama">—</span></div>
+        <div class="info-row"><span class="k">Koordinat GPS</span><span class="v" id="k-gps">—</span></div>
+        <div class="info-row"><span class="k">QR / Meja</span>   <span class="v" id="k-meja">—</span></div>
+        <div class="info-row"><span class="k">Jarak Sekolah</span><span class="v" id="k-jarak">Menghitung…</span></div>
+      </div>
+    </div>
+    <button class="btn btn-green" id="btn-submit-hadir" onclick="submitHadir()">🎉 Konfirmasi &amp; Catat Kehadiran</button>
+    <button class="btn btn-ghost" onclick="resetHadir()">↩ Ulangi dari Awal</button>
+  </div>
+
+  <div class="h20"></div>
+</div>
+
+<!-- ══════════════════════ SCREEN: IZIN ══════════════════════ -->
+<div class="screen" id="screen-izin">
+  <div class="hero-sm amber">
+    <button class="back-btn" onclick="goBack('screen-main')">‹</button>
+    <h2>🟡 Izin / Sakit</h2>
+    <p>Formulir Pengajuan Ketidakhadiran</p>
+  </div>
+
+  <div class="card" style="margin-top:0;">
+    <div class="form-group">
+      <label class="form-label">Jenis Pengajuan</label>
+      <div class="radio-grid">
+        <div>
+          <input type="radio" name="jenis" id="r-sakit" value="SAKIT" class="radio-inp" checked>
+          <label for="r-sakit" class="radio-lbl">
+            <span class="emoji">🤒</span><span class="lbl">SAKIT</span>
+          </label>
+        </div>
+        <div>
+          <input type="radio" name="jenis" id="r-izin" value="IZIN" class="radio-inp">
+          <label for="r-izin" class="radio-lbl">
+            <span class="emoji">📄</span><span class="lbl">IZIN</span>
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="f-mulai">Tanggal Mulai</label>
+      <input type="date" id="f-mulai" class="form-ctrl">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="f-selesai">Tanggal Selesai</label>
+      <input type="date" id="f-selesai" class="form-ctrl">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="f-alasan">Alasan / Keterangan</label>
+      <textarea id="f-alasan" class="form-ctrl" placeholder="Contoh: Demam dan disarankan istirahat oleh dokter…"></textarea>
+    </div>
+  </div>
+
+  <button class="btn btn-amber" id="btn-submit-izin" onclick="submitIzin()">📤 Kirim Pengajuan ke Admin</button>
+  <button class="btn btn-ghost" onclick="goBack('screen-main')">Batal</button>
+  <div class="h20"></div>
+</div>
+
+<!-- ══════════════════════ SCREEN: SUCCESS ══════════════════════ -->
+<div class="screen" id="screen-success">
+  <div class="success-box">
+    <div class="success-emoji" id="s-emoji">🎉</div>
+    <div class="success-title" id="s-title">Berhasil!</div>
+    <div class="success-sub"   id="s-sub">Data berhasil disimpan.</div>
+    <div class="success-info green" id="s-info"></div>
+    <button class="btn btn-green" onclick="backToHome()">🏠 Kembali ke Beranda</button>
+  </div>
+</div>
+
+<!-- ══════════════════════ MODAL: IZIN KAMERA ══════════════════════ -->
+<div class="modal-overlay hidden" id="modal-cam-perm">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📷 Izin Kamera Dibutuhkan</div>
+    <div class="modal-sub">Kamera hanya digunakan untuk memindai QR Code meja mengajar. Tidak ada foto yang tersimpan.</div>
+    <div class="cam-perm-visual">
+      <div class="cam-perm-icon">📸</div>
+      <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:10px;">Sebentar lagi muncul pertanyaan dari browser</div>
+      <div class="cam-perm-dialog">
+        <div class="cam-perm-dialog-title">🌐 Izinkan akses kamera?</div>
+        <div class="cam-perm-dialog-sub">Aplikasi ini ingin menggunakan kamera Anda untuk memindai QR Code.</div>
+        <div class="cam-perm-btn-row">
+          <div class="cam-dialog-btn deny">Blokir</div>
+          <div class="cam-dialog-btn allow">✅ Izinkan</div>
+        </div>
+      </div>
+    </div>
+    <div class="cam-perm-steps">
+      <div class="cam-step">
+        <div class="cam-step-num">1</div>
+        <div class="cam-step-text">
+          <div class="cam-step-title">Tekan tombol "Buka Kamera" di bawah</div>
+          <div class="cam-step-desc">Browser akan menampilkan pertanyaan izin kamera</div>
+        </div>
+      </div>
+      <div class="cam-step">
+        <div class="cam-step-num">2</div>
+        <div class="cam-step-text">
+          <div class="cam-step-title">Pilih <span style="color:var(--green);font-weight:900">"Izinkan"</span> pada kotak dialog</div>
+          <div class="cam-step-desc">Jangan pilih "Blokir" — kamera tidak akan bisa dibuka</div>
+        </div>
+      </div>
+      <div class="cam-step">
+        <div class="cam-step-num">3</div>
+        <div class="cam-step-text">
+          <div class="cam-step-title">Arahkan kamera ke stiker QR Code di meja</div>
+          <div class="cam-step-desc">Pastikan pencahayaan cukup dan QR tidak tertutup</div>
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-green" onclick="confirmOpenCamera()" style="margin-bottom:10px;">📷 Buka Kamera Sekarang</button>
+    <button class="btn btn-ghost" onclick="closeModal('modal-cam-perm'); resetHadir();">Batal</button>
+  </div>
+</div>
+
+<!-- ══════════════════════ MODAL: KAMERA DITOLAK ══════════════════════ -->
+<div class="modal-overlay hidden" id="modal-cam-denied">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">⚠️ Izin Kamera Diblokir</div>
+    <div class="modal-sub">Izin kamera sudah pernah diblokir. Ikuti langkah berikut untuk mengaktifkannya kembali:</div>
+    <div class="denied-steps">
+      <div class="denied-step">
+        <div class="denied-step-emoji">🔒</div>
+        <div class="denied-step-text">Tap ikon <strong>gembok 🔒</strong> atau <strong>info ℹ️</strong> di pojok kiri atas browser (address bar)<br><small>Muncul saat Anda tap di kolom alamat website</small></div>
+      </div>
+      <div class="denied-step">
+        <div class="denied-step-emoji">📋</div>
+        <div class="denied-step-text">Cari menu <strong>"Izin"</strong> atau <strong>"Permissions"</strong><br><small>Di Chrome: ketuk "Izin situs" → Kamera → Izinkan</small></div>
+      </div>
+      <div class="denied-step">
+        <div class="denied-step-emoji">📷</div>
+        <div class="denied-step-text">Ubah setting Kamera dari <strong style="color:var(--red)">Blokir</strong> menjadi <strong style="color:var(--green)">Izinkan</strong></div>
+      </div>
+      <div class="denied-step">
+        <div class="denied-step-emoji">🔄</div>
+        <div class="denied-step-text">Muat ulang halaman ini, lalu coba buka kamera lagi<br><small>Tarik halaman ke bawah (refresh) atau tutup-buka tab</small></div>
+      </div>
+    </div>
+    <div style="background:var(--amber-pale);color:var(--amber);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;font-weight:700;line-height:1.6;margin-bottom:20px;">
+      💡 <strong>Alternatif:</strong> Buka aplikasi ini di Chrome (Android) atau Safari (iPhone), lalu izinkan kameranya.
+    </div>
+    <button class="btn btn-green" onclick="closeModal('modal-cam-denied'); confirmOpenCamera();">🔄 Coba Buka Kamera Lagi</button>
+    <button class="btn btn-ghost" onclick="closeModal('modal-cam-denied'); resetHadir();">Kembali ke Beranda</button>
+  </div>
+</div>
+
+<!-- ══════════════════════ MODAL: INSTALL GUIDE ══════════════════════ -->
+<div class="modal-overlay hidden" id="modal-install">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📲 Pasang di Layar Utama</div>
+    <div class="modal-sub">Ikuti panduan sesuai HP yang Anda gunakan agar aplikasi absensi muncul seperti aplikasi biasa.</div>
+    <div class="os-tabs">
+      <button class="os-tab active" id="tab-android" onclick="switchOsTab('android')">🤖 Android</button>
+      <button class="os-tab"        id="tab-ios"     onclick="switchOsTab('ios')">🍎 iPhone / iPad</button>
+    </div>
+    <div class="os-panel active" id="panel-android">
+      <div class="install-steps">
+        <div class="install-step">
+          <div class="install-step-num">1</div>
+          <div class="install-step-body">
+            <div class="install-step-title">Buka menu Chrome ⋮</div>
+            <div class="install-step-desc">Tap titik tiga di sudut kanan atas browser Chrome</div>
+          </div>
+        </div>
+        <div class="install-step">
+          <div class="install-step-num">2</div>
+          <div class="install-step-body">
+            <div class="install-step-title">Pilih "Tambahkan ke layar utama"</div>
+            <div class="install-step-desc">Atau mungkin muncul teks "Instal aplikasi" / "Add to Home screen"</div>
+          </div>
+        </div>
+        <div class="install-step">
+          <div class="install-step-num">3</div>
+          <div class="install-step-body">
+            <div class="install-step-title">Tap "Tambahkan" di kotak konfirmasi</div>
+            <div class="install-step-desc">Ikon "Absensi Guru SDN" akan muncul di layar utama HP Anda</div>
+          </div>
+        </div>
+        <div class="install-step">
+          <div class="install-step-num">4</div>
+          <div class="install-step-body">
+            <div class="install-step-title">Buka dari ikon di layar utama 🎉</div>
+            <div class="install-step-desc">Aplikasi akan terbuka tanpa address bar, seperti aplikasi asli</div>
+          </div>
+        </div>
+      </div>
+      <div class="install-tip">💡 <strong>Hanya tersedia di Chrome.</strong> Jika menggunakan browser lain, buka aplikasi ini di Chrome terlebih dahulu.</div>
+      <button class="btn btn-green" id="btn-native-install" style="display:none;margin-bottom:10px;" onclick="triggerNativeInstall()">⬇️ Instal Sekarang (Otomatis)</button>
+    </div>
+    <div class="os-panel" id="panel-ios">
+      <div class="install-steps">
+        <div class="install-step">
+          <div class="install-step-num">1</div>
+          <div class="install-step-body">
+            <div class="install-step-title">Buka di Safari 🧭</div>
+            <div class="install-step-desc">Hanya bisa dipasang dari Safari (bawaan iPhone/iPad)</div>
+          </div>
+        </div>
+        <div class="install-step">
+          <div class="install-step-num">2</div>
+          <div class="install-step-body">
+            <div class="install-step-title">Tap tombol Berbagi ⬆️</div>
+            <div class="install-step-desc">Ikon kotak dengan panah ke atas, di bagian bawah layar Safari</div>
+          </div>
+        </div>
+        <div class="install-step">
+          <div class="install-step-num">3</div>
+          <div class="install-step-body">
+            <div class="install-step-title">Pilih "Tambahkan ke Layar Utama"</div>
+            <div class="install-step-desc">Geser panel ke atas dan cari tombol "Add to Home Screen"</div>
+          </div>
+        </div>
+        <div class="install-step">
+          <div class="install-step-num">4</div>
+          <div class="install-step-body">
+            <div class="install-step-title">Tap "Tambahkan" di pojok kanan atas</div>
+            <div class="install-step-desc">Ikon absensi akan langsung muncul di layar utama iPhone</div>
+          </div>
+        </div>
+      </div>
+      <div class="install-tip">💡 <strong>Khusus Safari.</strong> Chrome di iPhone tidak mendukung fitur ini.</div>
+    </div>
+    <button class="btn btn-ghost" onclick="closeModal('modal-install')">Tutup Panduan</button>
+  </div>
+</div>
+
+<!-- ══════════════════════ JAVASCRIPT ══════════════════════ -->
+<script>
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  ⚠️  KONFIGURASI — WAJIB DIISI SEBELUM DEPLOY             ║
+// ╠══════════════════════════════════════════════════════════════╣
+// ║                                                              ║
+// ║  GAS_URL  → URL Web App dari Google Apps Script.            ║
+// ║             Deploy → Manage Deployments → salin URL-nya.   ║
+// ║                                                              ║
+// ║  GOOGLE_CLIENT_ID → OAuth 2.0 Client ID dari Google Cloud.  ║
+// ║  Langkah:                                                    ║
+// ║    1. Buka console.cloud.google.com                         ║
+// ║    2. APIs & Services → Credentials → Create Credentials    ║
+// ║    3. OAuth 2.0 Client ID → Web Application                 ║
+// ║    4. Authorized JS Origins: https://<username>.github.io   ║
+// ║    5. Salin Client ID (format: xxxxxx.apps.googleusercontent.com) ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+const GAS_URL          = 'https://script.google.com/macros/s/AKfycbwok681rJo-01o855cWxd0kpAL0tmQYZR0jNaxEo74PEWb53l307hdmGIgsJjLeGHsk/exec';
+const GOOGLE_CLIENT_ID = 'const GOOGLE_CLIENT_ID = 131466305902-kpb3dchkanm3lqr2qhfch9lceoibrbl1.apps.googleusercontent.com;';
+
+// ─────────────────────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────────────────────
+const S = {
+  email: '', nama: '',
+  sudahAbsen: false,
+  lat: null, lng: null,
+  qrCode: '',
+  hadirStep: 1,
+
+  // Camera state
+  stream:    null,
+  scanRAF:   null,
+  torchOn:   false,
+  torchTrack: null,
+  qrLocked:  false,
+
+  // PWA install
+  deferredInstallPrompt: null,
+};
+
+// ─────────────────────────────────────────────────────────────
+//  BACKEND — fetch() ke GAS Web App  (menggantikan google.script.run)
+//
+//  Teknik: POST dengan Content-Type text/plain agar tidak
+//  memicu CORS preflight (simple request), tapi body tetap JSON.
+//  GAS membacanya via e.postData.contents dan JSON.parse().
+// ─────────────────────────────────────────────────────────────
+async function callGAS(action, params = {}) {
+  const body = JSON.stringify({ action, ...params });
+
+  let res;
+  try {
+    res = await fetch(GAS_URL, {
+      method : 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+      body,
+      redirect: 'follow',
+    });
+  } catch (networkErr) {
+    throw new Error(
+      'Tidak dapat menghubungi server. Periksa koneksi internet Anda. (' + networkErr.message + ')'
+    );
+  }
+
+  if (!res.ok) {
+    throw new Error('Server error HTTP ' + res.status + '. Coba lagi beberapa saat.');
+  }
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (_) {
+    throw new Error('Respons server tidak valid. Pastikan URL GAS benar.');
+  }
+
+  // GAS always returns { success, data } or { success: false, error }
+  if (!data.success) {
+    throw new Error(data.error || 'Terjadi kesalahan di server.');
+  }
+
+  return data; // data.data berisi payload aktual
+}
+
+// ─────────────────────────────────────────────────────────────
+//  GOOGLE IDENTITY SERVICES (GIS)
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Dipanggil otomatis oleh atribut onload="setupGoogleSignIn()"
+ * pada tag <script src="https://accounts.google.com/gsi/client">.
+ * Jika library gagal muat (offline), tombol login tidak muncul.
+ */
+function setupGoogleSignIn() {
+  // Sembunyikan spinner "memuat tombol"
+  const loading = document.getElementById('gsi-loading');
+  loading.classList.remove('show');
+
+  try {
+    google.accounts.id.initialize({
+      client_id    : GOOGLE_CLIENT_ID,
+      callback     : handleGoogleSignIn,
+      auto_select  : true,   // Auto sign-in jika sebelumnya sudah login
+      cancel_on_tap_outside: false,
+    });
+
+    // Render tombol Google Sign-In
+    google.accounts.id.renderButton(
+      document.getElementById('google-signin-btn'),
+      {
+        theme : 'filled_blue',
+        size  : 'large',
+        width : 280,
+        text  : 'signin_with',
+        locale: 'id',
+      }
+    );
+
+    // Tampilkan One Tap prompt jika tersedia
+    google.accounts.id.prompt();
+
+  } catch (e) {
+    document.getElementById('gsi-loading').innerHTML =
+      '<span style="color:var(--red);">⚠️ Gagal memuat tombol login. Periksa Client ID dan koneksi internet.</span>';
+    document.getElementById('gsi-loading').classList.add('show');
+    console.error('GIS init error:', e);
+  }
+}
+
+/**
+ * Callback dari GIS setelah user berhasil sign-in.
+ * response.credential adalah JWT dari Google.
+ */
+function handleGoogleSignIn(response) {
+  try {
+    const payload = parseJWT(response.credential);
+    S.email = payload.email;
+
+    // Tampilkan loading dan mulai validasi ke backend GAS
+    showLoadingScreen('Memverifikasi akun…', 'Sedang memeriksa data guru di sistem.');
+    validateAndLoad();
+  } catch (e) {
+    toast('❌ Gagal membaca data akun Google. Coba lagi.', 'err', 5000);
+    console.error('JWT parse error:', e);
+  }
+}
+
+/**
+ * Decode JWT payload (base64url) tanpa verifikasi signature.
+ * Aman digunakan di sisi klien untuk membaca email yang diterbitkan Google.
+ */
+function parseJWT(token) {
+  const base64Url = token.split('.')[1];
+  const base64    = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+  const json      = decodeURIComponent(
+    atob(base64).split('').map(c =>
+      '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+    ).join('')
+  );
+  return JSON.parse(json);
+}
+
+/**
+ * Sign-out: cabut sesi Google dan kembali ke halaman login.
+ */
+function signOut() {
+  if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+    google.accounts.id.disableAutoSelect();
+    if (S.email) {
+      google.accounts.id.revoke(S.email, () => {});
+    }
+  }
+  S.email      = '';
+  S.nama       = '';
+  S.sudahAbsen = false;
+  stopScanner();
+  goScreen('screen-signin');
+  toast('👋 Anda telah keluar dari sistem.', 'info', 3000);
+}
+
+// ─────────────────────────────────────────────────────────────
+//  INIT — Validasi guru ke GAS setelah sign-in Google
+// ─────────────────────────────────────────────────────────────
+
+async function validateAndLoad() {
+  try {
+    // 1. Validasi email ke GAS (cek apakah terdaftar & AKTIF)
+    const r2 = await callGAS('validateGuru', { email: S.email });
+    S.nama = r2.data.nama;
+
+    // 2. Cek absensi hari ini
+    await refreshStatus();
+
+    // 3. Update UI
+    document.getElementById('main-nama').textContent      = S.nama;
+    document.getElementById('main-nama-card').textContent = S.nama;
+    document.getElementById('main-email').textContent     = S.email;
+    document.getElementById('main-tanggal').textContent   = tanggalHariIni();
+
+    const td = isoToday();
+    document.getElementById('f-mulai').value   = td;
+    document.getElementById('f-selesai').value = td;
+
+    goScreen('screen-main');
+    showInstallBannerIfNeeded();
+
+  } catch (e) {
+    document.getElementById('err-msg').textContent =
+      e.message || 'Terjadi kesalahan. Pastikan email Anda sudah didaftarkan Admin ke sistem.';
+    goScreen('screen-error');
+  }
+}
+
+function showLoadingScreen(title = 'Memuat…', sub = 'Mohon tunggu sebentar.') {
+  document.getElementById('loading-title').textContent = title;
+  document.getElementById('loading-sub').textContent   = sub;
+  goScreen('screen-loading');
+}
+
+// ─────────────────────────────────────────────────────────────
+//  PWA: CAPTURE INSTALL PROMPT
+// ─────────────────────────────────────────────────────────────
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  S.deferredInstallPrompt = e;
+  const nativeBtn = document.getElementById('btn-native-install');
+  if (nativeBtn) nativeBtn.style.display = 'block';
+});
+
+window.addEventListener('appinstalled', () => {
+  S.deferredInstallPrompt = null;
+  dismissInstallBanner();
+  toast('🎉 Aplikasi berhasil dipasang di layar utama!', 'ok', 4000);
+});
+
+// ─────────────────────────────────────────────────────────────
+//  SCREEN NAVIGATION
+// ─────────────────────────────────────────────────────────────
+function goScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+function goBack(id) { stopScanner(); goScreen(id); }
+
+// ─────────────────────────────────────────────────────────────
+//  TOAST
+// ─────────────────────────────────────────────────────────────
+function toast(msg, type = 'info', ms = 4200) {
+  const wrap = document.getElementById('toast-wrap');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  wrap.appendChild(t);
+  setTimeout(() => {
+    t.classList.add('out');
+    setTimeout(() => t.remove(), 300);
+  }, ms);
+}
+
+// ─────────────────────────────────────────────────────────────
+//  MODAL HELPERS
+// ─────────────────────────────────────────────────────────────
+function openModal(id)  {
+  document.getElementById(id).classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
+  document.body.style.overflow = '';
+}
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('modal-overlay')) {
+    e.target.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+//  INSTALL BANNER & GUIDE
+// ─────────────────────────────────────────────────────────────
+const INSTALL_DISMISSED_KEY = 'installBannerDismissed_v1';
+
+function showInstallBannerIfNeeded() {
+  if (localStorage.getItem(INSTALL_DISMISSED_KEY)) return;
+  if (window.matchMedia('(display-mode: standalone)').matches) return;
+  if (window.navigator.standalone === true) return;
+  document.getElementById('install-banner').classList.remove('hidden');
+}
+
+function dismissInstallBanner(evt) {
+  if (evt) evt.stopPropagation();
+  localStorage.setItem(INSTALL_DISMISSED_KEY, '1');
+  document.getElementById('install-banner').classList.add('hidden');
+}
+
+function showInstallGuide() {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  switchOsTab(isIOS ? 'ios' : 'android');
+  openModal('modal-install');
+}
+
+function switchOsTab(os) {
+  ['android', 'ios'].forEach(id => {
+    document.getElementById('tab-' + id).classList.toggle('active', id === os);
+    document.getElementById('panel-' + id).classList.toggle('active', id === os);
+  });
+}
+
+async function triggerNativeInstall() {
+  if (!S.deferredInstallPrompt) {
+    toast('ℹ️ Ikuti panduan manual di bawah.', 'info');
+    return;
+  }
+  closeModal('modal-install');
+  S.deferredInstallPrompt.prompt();
+  const { outcome } = await S.deferredInstallPrompt.userChoice;
+  if (outcome === 'accepted') S.deferredInstallPrompt = null;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  DATE HELPERS
+// ─────────────────────────────────────────────────────────────
+function tanggalHariIni() {
+  const d = new Date();
+  const H = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+  const B = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  return `${H[d.getDay()]}, ${d.getDate()} ${B[d.getMonth()]} ${d.getFullYear()}`;
+}
+function isoToday() { return new Date().toISOString().split('T')[0]; }
+
+// ─────────────────────────────────────────────────────────────
+//  STATUS — Cek apakah guru sudah absen hari ini
+// ─────────────────────────────────────────────────────────────
+async function refreshStatus() {
+  const r = await callGAS('cekAbsenHariIni', { email: S.email });
+  if (r.data.sudahAbsen) {
+    S.sudahAbsen = true;
+    const badge = document.getElementById('main-status-badge');
+    badge.className = 'status-badge green';
+    badge.querySelector('.status-dot').style.animation = 'none';
+    document.getElementById('main-status-text').textContent =
+      '✅ Sudah hadir — ' + r.data.waktuAbsen;
+
+    const b = document.getElementById('btn-hadir');
+    b.className = 'btn-action disabled';
+    b.querySelector('.btn-action-sub').textContent = 'Sudah tercatat';
+    b.onclick = () => toast('⚠️ Anda sudah absen hadir hari ini.', 'info');
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  HADIR FLOW
+// ─────────────────────────────────────────────────────────────
+function goHadir() {
+  if (S.sudahAbsen) { toast('⚠️ Anda sudah tercatat hadir hari ini.', 'info'); return; }
+  resetHadir();
+  goScreen('screen-hadir');
+}
+
+function setStep(n) {
+  S.hadirStep = n;
+  for (let i = 1; i <= 3; i++) {
+    document.getElementById('seg' + i).className =
+      'step-seg' + (i < n ? ' done' : i === n ? ' active' : '');
+    document.getElementById('panel' + i).className =
+      'step-panel' + (i === n ? ' active' : '');
+  }
+}
+
+function resetHadir() {
+  stopScanner();
+  S.lat = null; S.lng = null; S.qrCode = '';
+
+  const gr = document.getElementById('gps-result');
+  gr.className = 'gps-result'; gr.textContent = '';
+  document.getElementById('gps-emoji').textContent = '📍';
+  document.getElementById('gps-title').textContent = 'Verifikasi Lokasi GPS';
+  document.getElementById('gps-desc').textContent  =
+    'Tekan tombol di bawah untuk mendeteksi lokasi Anda saat ini. Pastikan GPS / Lokasi aktif di HP Anda.';
+
+  const gb = document.getElementById('btn-gps');
+  gb.disabled = false; gb.textContent = '📍 Deteksi Lokasi Saya';
+
+  document.getElementById('qr-result').className   = 'qr-result';
+  document.getElementById('qr-result').textContent = '';
+  document.getElementById('qr-frame').classList.remove('detected');
+  document.getElementById('qr-status-chip').textContent = 'Mencari QR Code…';
+  document.getElementById('qr-cam-error').classList.remove('show');
+
+  setStep(1);
+}
+
+// ─────────────────────────────────────────────────────────────
+//  GPS
+// ─────────────────────────────────────────────────────────────
+function getGPS() {
+  const btn = document.getElementById('btn-gps');
+  const res = document.getElementById('gps-result');
+  btn.disabled = true; btn.textContent = '⏳ Mendeteksi Lokasi…';
+  res.className = 'gps-result'; res.textContent = '';
+
+  if (!navigator.geolocation) {
+    res.textContent = '❌ GPS tidak didukung oleh browser ini.';
+    res.className = 'gps-result err';
+    btn.disabled = false; btn.textContent = '📍 Deteksi Lokasi Saya';
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      S.lat = pos.coords.latitude;
+      S.lng = pos.coords.longitude;
+      const acc = Math.round(pos.coords.accuracy);
+      res.textContent =
+        `✅ Lokasi terdeteksi!\nAkurasi: ±${acc} meter\nKoordinat: ${S.lat.toFixed(6)}, ${S.lng.toFixed(6)}`;
+      res.className = 'gps-result ok';
+      btn.textContent = '✅ Lokasi Terdeteksi';
+      setTimeout(() => { setStep(2); showCameraPermGuide(); }, 1400);
+    },
+    err => {
+      let m = '❌ Gagal mendeteksi GPS. ';
+      if (err.code === 1)      m += 'Izin lokasi ditolak. Aktifkan di pengaturan browser.';
+      else if (err.code === 2) m += 'Sinyal GPS tidak tersedia. Coba lagi.';
+      else                     m += 'Waktu habis. Pastikan GPS aktif lalu coba lagi.';
+      res.textContent = m;
+      res.className = 'gps-result err';
+      btn.disabled = false; btn.textContent = '🔄 Coba Lagi';
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+//  CAMERA PERMISSION GUIDE
+// ─────────────────────────────────────────────────────────────
+async function showCameraPermGuide() {
+  if (navigator.permissions && navigator.permissions.query) {
+    try {
+      const status = await navigator.permissions.query({ name: 'camera' });
+      if (status.state === 'granted') { startScanner(); return; }
+      if (status.state === 'denied')  { openModal('modal-cam-denied'); return; }
+    } catch (_) {}
+  }
+  openModal('modal-cam-perm');
+}
+
+async function confirmOpenCamera() {
+  closeModal('modal-cam-perm');
+  await startScanner();
+}
+
+// ─────────────────────────────────────────────────────────────
+//  QR SCANNER — jsQR via getUserMedia + rAF loop
+// ─────────────────────────────────────────────────────────────
+async function startScanner() {
+  stopScanner();
+  S.qrLocked = false;
+
+  const video      = document.getElementById('qr-video');
+  const canvas     = document.getElementById('qr-canvas');
+  const camError   = document.getElementById('qr-cam-error');
+  const statusChip = document.getElementById('qr-status-chip');
+  const torchBtn   = document.getElementById('qr-torch-btn');
+  const ctx        = canvas.getContext('2d', { willReadFrequently: true });
+
+  torchBtn.style.display = 'none';
+
+  if (typeof jsQR === 'undefined') {
+    camError.textContent = '⚠️ Library jsQR gagal dimuat. Periksa koneksi internet Anda.';
+    camError.classList.add('show');
+    return;
+  }
+
+  try {
+    S.stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: 'environment' },
+        width:  { ideal: 1280 },
+        height: { ideal: 720  },
+      },
+      audio: false,
+    });
+  } catch (err) {
+    if (err.name === 'NotAllowedError') {
+      openModal('modal-cam-denied');
+      return;
+    }
+    let msg = '📵 Kamera tidak dapat diakses.\n';
+    if (err.name === 'NotFoundError')    msg += 'Tidak ditemukan kamera di perangkat ini.';
+    else if (err.name === 'NotReadableError') msg += 'Kamera sedang digunakan aplikasi lain.';
+    else msg += err.message;
+    camError.textContent = msg;
+    camError.classList.add('show');
+    video.style.display = 'none';
+    toast('❌ Kamera tidak dapat diakses.', 'err', 5000);
+    return;
+  }
+
+  video.srcObject = S.stream;
+  video.style.display = 'block';
+  camError.classList.remove('show');
+
+  const tracks = S.stream.getVideoTracks();
+  if (tracks.length > 0) {
+    S.torchTrack = tracks[0];
+    const caps = S.torchTrack.getCapabilities ? S.torchTrack.getCapabilities() : {};
+    if (caps.torch) { torchBtn.style.display = 'block'; S.torchOn = false; }
+  }
+
+  video.onloadedmetadata = () => {
+    video.play();
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    statusChip.textContent = 'Mencari QR Code…';
+    scanLoop(video, canvas, ctx, statusChip);
+  };
+}
+
+function scanLoop(video, canvas, ctx, statusChip) {
+  if (!S.stream || S.qrLocked) return;
+
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+    }
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: 'dontInvert',
+    });
+    if (code) {
+      S.qrLocked = true;
+      onQRScanned(code.data);
+      return;
+    }
+  }
+  S.scanRAF = requestAnimationFrame(() => scanLoop(video, canvas, ctx, statusChip));
+}
+
+function stopScanner() {
+  if (S.scanRAF)  { cancelAnimationFrame(S.scanRAF); S.scanRAF = null; }
+  if (S.stream)   { S.stream.getTracks().forEach(t => t.stop()); S.stream = null; }
+
+  const video = document.getElementById('qr-video');
+  if (video) { video.srcObject = null; video.load(); }
+
+  S.torchOn    = false;
+  S.torchTrack = null;
+  const torchBtn = document.getElementById('qr-torch-btn');
+  if (torchBtn) { torchBtn.classList.remove('on'); torchBtn.style.display = 'none'; }
+}
+
+async function toggleTorch() {
+  if (!S.torchTrack) return;
+  try {
+    S.torchOn = !S.torchOn;
+    await S.torchTrack.applyConstraints({ advanced: [{ torch: S.torchOn }] });
+    const btn = document.getElementById('qr-torch-btn');
+    btn.classList.toggle('on', S.torchOn);
+    btn.textContent = S.torchOn ? '💡' : '🔦';
+  } catch (_) {
+    toast('⚠️ Senter tidak didukung di browser ini.', 'info');
+  }
+}
+
+function cancelQR() { stopScanner(); resetHadir(); goBack('screen-main'); }
+
+function onQRScanned(code) {
+  stopScanner();
+  S.qrCode = code;
+
+  document.getElementById('qr-frame').classList.add('detected');
+  document.getElementById('qr-status-chip').textContent = '✅ QR Code Terdeteksi!';
+
+  const qr = document.getElementById('qr-result');
+  qr.textContent = '✅ QR Code berhasil dibaca: ' + code;
+  qr.className = 'qr-result ok';
+
+  document.getElementById('k-nama').textContent  = S.nama;
+  document.getElementById('k-gps').textContent   = `${S.lat.toFixed(5)}, ${S.lng.toFixed(5)}`;
+  document.getElementById('k-meja').textContent  = code;
+  document.getElementById('k-jarak').textContent = 'Menghitung…';
+
+  if (navigator.vibrate) navigator.vibrate(120);
+  setTimeout(() => setStep(3), 850);
+}
+
+// ─────────────────────────────────────────────────────────────
+//  SUBMIT HADIR
+// ─────────────────────────────────────────────────────────────
+async function submitHadir() {
+  const btn = document.getElementById('btn-submit-hadir');
+  btn.disabled = true; btn.textContent = '⏳ Menyimpan…';
+  try {
+    const r = await callGAS('submitHadir', {
+      email: S.email, lat: S.lat, lng: S.lng, qrCode: S.qrCode,
+    });
+    const d = r.data;
+    document.getElementById('k-jarak').textContent = d.jarak + ' meter';
+
+    const terlambat = d.terlambat;
+    document.getElementById('s-emoji').textContent = terlambat ? '⚠️' : '🎉';
+    document.getElementById('s-title').textContent = terlambat ? 'Hadir — Terlambat' : 'Absensi Tercatat!';
+    document.getElementById('s-sub').textContent   = d.pesan || 'Kehadiran Anda berhasil dicatat.';
+    const si = document.getElementById('s-info');
+    si.className = 'success-info ' + (terlambat ? 'amber' : 'green');
+    si.innerHTML = infoRow('Nama Guru',   d.namaGuru)
+                 + infoRow('Meja / Kelas', d.meja)
+                 + infoRow('Jarak GPS',    d.jarak + ' meter')
+                 + (terlambat
+                   ? infoRow('Jam Masuk', d.jam + ' ⚠️ Terlambat (batas ' + CONFIG_TERLAMBAT + ')')
+                   : '')
+                 + infoRow('Waktu', d.timestamp);
+    S.sudahAbsen = true;
+    goScreen('screen-success');
+  } catch (e) {
+    toast('❌ ' + e.message, 'err', 6000);
+    btn.disabled = false; btn.textContent = '🎉 Konfirmasi & Catat Kehadiran';
+  }
+}
+
+// Nilai ini diambil dari respons server (d.jam), tapi untuk label
+// kita bisa tampilkan jam batas dari config di pesan sukses.
+// Nilai 07:15 disini hanyalah fallback label di sisi klien.
+const CONFIG_TERLAMBAT = '07:15';
+
+// ─────────────────────────────────────────────────────────────
+//  IZIN FLOW
+// ─────────────────────────────────────────────────────────────
+function goIzin() { goScreen('screen-izin'); }
+
+async function submitIzin() {
+  const jenis   = document.querySelector('input[name="jenis"]:checked')?.value;
+  const mulai   = document.getElementById('f-mulai').value;
+  const selesai = document.getElementById('f-selesai').value;
+  const alasan  = document.getElementById('f-alasan').value.trim();
+
+  if (!jenis || !mulai || !selesai || !alasan) {
+    toast('⚠️ Semua kolom wajib diisi!', 'err'); return;
+  }
+
+  // [F5] Validasi tanggal sisi klien (backend juga memvalidasi)
+  const today = isoToday();
+  if (mulai < today) {
+    toast('⚠️ Tanggal mulai tidak boleh sebelum hari ini!', 'err'); return;
+  }
+  if (selesai < mulai) {
+    toast('⚠️ Tanggal selesai tidak boleh sebelum tanggal mulai.', 'err'); return;
+  }
+
+  const btn = document.getElementById('btn-submit-izin');
+  btn.disabled = true; btn.textContent = '⏳ Mengirim…';
+
+  try {
+    // Catatan: field names HARUS cocok dengan destructuring di Code.gs actionSubmitIzin:
+    // const { email, jenisIzin, tglMulai, tglSelesai, alasan } = payload;
+    const r = await callGAS('submitIzin', {
+      email     : S.email,
+      jenisIzin : jenis,
+      tglMulai  : mulai,    // ← nama field wajib cocok dengan Code.gs
+      tglSelesai: selesai,  // ← nama field wajib cocok dengan Code.gs
+      alasan,
+    });
+    const d = r.data;
+
+    document.getElementById('s-emoji').textContent = '✅';
+    document.getElementById('s-title').textContent = 'Pengajuan Terkirim!';
+    document.getElementById('s-sub').textContent   = d.pesan || 'Pengajuan Anda telah diterima Admin.';
+    const si = document.getElementById('s-info');
+    si.className = 'success-info amber';
+    si.innerHTML = infoRow('Nama Guru',    d.namaGuru)
+                 + infoRow('Jenis',        d.jenisIzin)
+                 + infoRow('Mulai',        d.tanggalMulai)
+                 + infoRow('Selesai',      d.tanggalSelesai)
+                 + infoRow('Jumlah Hari',  d.jumlahHari + ' hari');
+    goScreen('screen-success');
+  } catch (e) {
+    toast('❌ ' + e.message, 'err', 6000);
+    btn.disabled = false; btn.textContent = '📤 Kirim Pengajuan ke Admin';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  SUCCESS → HOME
+// ─────────────────────────────────────────────────────────────
+async function backToHome() {
+  goScreen('screen-main');
+  if (S.sudahAbsen) await refreshStatus();
+}
+
+// ─────────────────────────────────────────────────────────────
+//  HELPER
+// ─────────────────────────────────────────────────────────────
+function infoRow(k, v) {
+  return `<div class="info-row"><span class="k">${k}</span><span class="v">${v}</span></div>`;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  BOOT — Saat halaman pertama kali dibuka, tampilkan sign-in.
+//  (Tidak langsung call backend karena belum ada email.)
+//  GIS library akan memanggil setupGoogleSignIn() via onload.
+// ─────────────────────────────────────────────────────────────
+window.onload = () => {
+  // Tampilkan spinner "memuat tombol" sambil tunggu GIS library selesai load
+  document.getElementById('gsi-loading').classList.add('show');
+  goScreen('screen-signin');
+
+  // Timeout fallback: jika GIS tidak muat dalam 8 detik, tampilkan pesan error
+  setTimeout(() => {
+    const btn = document.getElementById('google-signin-btn');
+    const loading = document.getElementById('gsi-loading');
+    if (!btn || btn.innerHTML.trim() === '') {
+      loading.innerHTML =
+        '<span style="color:var(--red);font-size:13px;font-weight:700;">' +
+        '⚠️ Tombol login gagal dimuat.<br>Periksa koneksi internet atau buka kembali halaman ini.</span>';
+      loading.classList.add('show');
+    }
+  }, 8000);
+};
+</script>
+</body>
+</html>
