@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>ABSENSI</title>
+  <title>Absensi Guru SDN 01</title>
   <meta name="theme-color" content="#1565C0">
 
   <!-- ── PWA: iOS Meta Tags ───────────────────────────────── -->
@@ -1617,30 +1617,56 @@ function signOut() {
 
 // Ganti Akun: revoke Google session → paksa picker muncul lagi
 function gantiAkun() {
+  const emailLama = S.email || localStorage.getItem('guruEmail') || '';
+
+  // Hapus sesi & reset state
   localStorage.removeItem('guruEmail');
   localStorage.removeItem('guruNama');
-  if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
-    google.accounts.id.disableAutoSelect();
-    if (S.email) google.accounts.id.revoke(S.email, () => {});
-  }
-  S.email      = '';
-  S.nama       = '';
-  S.sudahAbsen = false;
+  S.email = ''; S.nama = ''; S.sudahAbsen = false;
+
   closeMenu();
   closeMenuAwal();
   stopScanner();
   goScreen('screen-signin');
+
   // Reset tombol Masuk
   const btnMasuk = document.getElementById('btn-masuk');
   if (btnMasuk) { btnMasuk.disabled = false; btnMasuk.textContent = '🔐 Masuk ke Sistem'; }
   document.getElementById('gsi-loading').classList.remove('show');
-  // Trigger GIS prompt untuk pilih akun baru
-  setTimeout(() => {
-    if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+
+  // Tampilkan Google Sign-In button
+  const btnGoogle = document.getElementById('google-signin-btn');
+  if (btnGoogle) btnGoogle.style.display = 'block';
+
+  const tampilkanPicker = () => {
+    if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
+      setTimeout(tampilkanPicker, 500);
+      return;
+    }
+    // Re-initialize TANPA login_hint agar picker tampil semua akun
+    google.accounts.id.initialize({
+      client_id            : GOOGLE_CLIENT_ID,
+      callback             : handleGoogleSignIn,
+      auto_select          : false,
+      cancel_on_tap_outside: false,
+    });
+    // Render ulang tombol Google
+    google.accounts.id.renderButton(btnGoogle, {
+      theme: 'filled_blue', size: 'large', width: 280,
+      text: 'signin_with', locale: 'id',
+    });
+    // Revoke dulu → prompt picker di dalam callback
+    if (emailLama) {
+      google.accounts.id.revoke(emailLama, () => {
+        google.accounts.id.prompt();
+      });
+    } else {
       google.accounts.id.prompt();
     }
-  }, 500);
-  toast('🔄 Silakan pilih akun Google lain.', 'info', 3000);
+  };
+
+  setTimeout(tampilkanPicker, 300);
+  toast('🔄 Pilih akun Google yang ingin digunakan.', 'info', 3000);
 }
 
 // Toggle dropdown menu titik tiga
